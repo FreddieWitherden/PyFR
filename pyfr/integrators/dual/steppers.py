@@ -16,7 +16,7 @@ class BaseDualStepper(BaseDualIntegrator):
         return self._pseudo_stepper_nregs + len(self._dual_time_source) - 1
 
 
-class BDF2DualStepper(BaseDualStepper):
+class DualBDF2Stepper(BaseDualStepper):
     stepper_name = 'bdf2'
 
     @property
@@ -27,11 +27,8 @@ class BDF2DualStepper(BaseDualStepper):
     def _dual_time_source(self):
         return [-1.5, 2.0, -0.5]
 
-    def _point_implicit_coeff(self, dt, stepper_coeff):
-        return stepper_coeff / (1.0 + 1.5*stepper_coeff/dt)
 
-
-class BDF3DualStepper(BaseDualStepper):
+class DualBDF3Stepper(BaseDualStepper):
     stepper_name = 'bdf3'
 
     @property
@@ -42,11 +39,8 @@ class BDF3DualStepper(BaseDualStepper):
     def _dual_time_source(self):
         return [-11.0/6.0, 3.0, -1.5, 1.0/3.0]
 
-    def _point_implicit_coeff(self, dt, stepper_coeff):
-        return stepper_coeff / (1.0 + 11.0*stepper_coeff/(6.0*dt))
 
-
-class BackwardEulerDualStepper(BaseDualStepper):
+class DualBackwardEulerStepper(BaseDualStepper):
     stepper_name = 'backward-euler'
 
     @property
@@ -56,6 +50,3 @@ class BackwardEulerDualStepper(BaseDualStepper):
     @property
     def _dual_time_source(self):
         return [-1.0, 1.0]
-
-    def _point_implicit_coeff(self, dt, stepper_coeff):
-        return stepper_coeff / (1.0 + stepper_coeff/dt)
