@@ -1,5 +1,5 @@
-from ctypes import (POINTER, Structure, addressof, byref, c_int, c_double,
-                    c_float, c_size_t, c_uint, c_uint32, c_void_p)
+from ctypes import (POINTER, addressof, byref, c_double, c_int, c_int32,
+                    c_int64, c_float, c_size_t, c_uint, c_void_p)
 
 import numpy as np
 
@@ -9,13 +9,6 @@ from pyfr.ctypesutil import LibWrapper
 
 # Possible TinyTC exception types
 class TinyTCError(Exception): pass
-
-
-class TinyTCMem(Structure):
-    _fields_ = [
-        ('value', c_void_p),
-        ('type', c_int)
-    ]
 
 
 class TinyTCWrappers(LibWrapper):
@@ -28,21 +21,23 @@ class TinyTCWrappers(LibWrapper):
 
     # Constants
     MEM_TYPE_BUF = 0
-    SCALAR_TYPE_F32 = 10
-    SCALAR_TYPE_F64 = 11
+    SCALAR_TYPE_F32 = 6
+    SCALAR_TYPE_F64 = 7
 
     # Functions
     _functions = [
+        (c_int, 'tinytc_cl_get_support_level', c_void_p, POINTER(c_int)),
         (c_int, 'tinytc_cl_core_info_create', POINTER(c_void_p), c_void_p),
         (c_int, 'tinytc_cl_recipe_handler_submit', c_void_p, c_void_p,
          c_uint, POINTER(c_void_p), POINTER(c_void_p)),
         (c_int, 'tinytc_cl_recipe_handler_create', POINTER(c_void_p),
          c_void_p, c_void_p, c_void_p),
         (c_int, 'tinytc_recipe_tall_and_skinny_create', POINTER(c_void_p),
-         c_void_p, c_int, c_uint32, c_uint32, c_uint32, c_void_p),
+         c_void_p, c_int, c_int64, c_int64, c_int32, c_void_p),
         (c_int, 'tinytc_recipe_tall_and_skinny_set_args', c_void_p,
-         c_uint32, c_size_t, c_void_p, TinyTCMem, c_uint32, TinyTCMem,
-         c_uint32, c_size_t, c_void_p, TinyTCMem, c_uint32),
+         c_int64, c_size_t, c_void_p, c_int, c_void_p, c_int64,
+         c_int, c_void_p, c_int64, c_size_t, c_void_p, c_int, c_int64,
+         c_int64),
         (c_int, 'tinytc_recipe_handler_release', c_void_p),
         (c_int, 'tinytc_recipe_release', c_void_p),
         (c_int, 'tinytc_core_info_release', c_void_p)
@@ -62,9 +57,15 @@ class OpenCLTinyTCKernels(OpenCLKernelProvider):
         # Load and wrap TinyTC
         self.lib = TinyTCWrappers()
 
-        # Init
-        self.lib.tinytc_cl_core_info_create(self.handle, backend.cl.dev)
+        # Query the support level
+        support = c_int()
+        self.lib.tinytc_cl_get_support_level(backend.cl.dev, support)
 
+        if support:
+            # Init
+            self.lib.tinytc_cl_core_info_create(self.handle, backend.cl.dev)
+
+            self.mul = self._mul
 
     def __del__(self):
         for r in self._recipes.values():
@@ -85,7 +86,7 @@ class OpenCLTinyTCKernels(OpenCLKernelProvider):
 
             return recipe
 
-    def mul(self, a, b, out, alpha=1.0, beta=0.0):
+    def _mul(self, a, b, out, alpha=1.0, beta=0.0):
         cl = self.backend.cl
         w, h = self.lib, self.handle
 
@@ -112,11 +113,6 @@ class OpenCLTinyTCKernels(OpenCLKernelProvider):
         ckey = (a.dtype, alpha, beta, m, n, k, a.leaddim, b.leaddim,
                 out.leaddim)
 
-        # Obtain pointers to the underlying cl_mem buffers
-        ABC_p = [c_void_p(x._as_parameter_) for x in [A, B, C]]
-        ABC_t = [TinyTCMem(addressof(p), w.MEM_TYPE_BUF) for p in ABC_p]
-        A_t, B_t, C_t = ABC_t
-
         # Create the associated handler
         handler = c_void_p()
         w.tinytc_cl_recipe_handler_create(handler, cl.ctx, cl.dev, recipe)
@@ -124,8 +120,9 @@ class OpenCLTinyTCKernels(OpenCLKernelProvider):
         try:
             # Set the arguments
             w.tinytc_recipe_tall_and_skinny_set_args(
-                handler, m, csize, byref(alpha_ct), A_t, A.leaddim, B_t,
-                B.leaddim, csize, byref(beta_ct), C_t, C.leaddim
+                handler, m, csize, byref(alpha_ct), w.MEM_TYPE_BUF, A,
+                A.leaddim, w.MEM_TYPE_BUF, B, B.leaddim, csize, byref(beta_ct),
+                w.MEM_TYPE_BUF, C, C.leaddim
             )
 
             # Obtain the performance of the kernel
