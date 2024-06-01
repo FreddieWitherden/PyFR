@@ -31,7 +31,7 @@ class TinyTCWrappers(LibWrapper):
         (c_int, 'tinytc_cl_recipe_handler_submit', c_void_p, c_void_p,
          c_uint, POINTER(c_void_p), POINTER(c_void_p)),
         (c_int, 'tinytc_cl_recipe_handler_create', POINTER(c_void_p),
-         c_void_p, c_void_p, c_void_p),
+         c_void_p, c_void_p, c_void_p, c_void_p),
         (c_int, 'tinytc_recipe_tall_and_skinny_create', POINTER(c_void_p),
          c_void_p, c_int, c_int64, c_int64, c_int32, c_void_p),
         (c_int, 'tinytc_recipe_tall_and_skinny_set_args', c_void_p,
@@ -115,7 +115,8 @@ class OpenCLTinyTCKernels(OpenCLKernelProvider):
 
         # Create the associated handler
         handler = c_void_p()
-        w.tinytc_cl_recipe_handler_create(handler, cl.ctx, cl.dev, recipe)
+        w.tinytc_cl_recipe_handler_create(handler, cl.ctx, cl.dev, recipe,
+                                          None)
 
         try:
             # Set the arguments
