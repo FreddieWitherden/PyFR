@@ -243,8 +243,8 @@ def process_partition_add(args):
         if args.partitioner:
             part = get_partitioner(args.partitioner, pwts, ewts, opts=opts)
         else:
-            for name in sorted(cls.name for cls in
-                               subclasses(BasePartitioner)):
+            parts = sorted(cls.name for cls in subclasses(BasePartitioner))
+            for name in parts:
                 try:
                     part = get_partitioner(name, pwts, ewts)
                     break
