@@ -176,9 +176,9 @@ def process_import(args):
 
 
 def process_partition_list(args):
-    with h5py.File(args.mesh, 'r') as mesh:
-        print('name', 'parts', sep=args.sep)
+    print('name', 'parts', sep=args.sep)
 
+    with h5py.File(args.mesh, 'r') as mesh:
         for name, part in sorted(mesh['partitionings'].items()):
             nparts = len(part['eles'].attrs['regions'])
             print(name, nparts, sep=args.sep)
@@ -193,9 +193,9 @@ def process_partition_info(args):
         # Print out the header
         print('part', *mesh['eles'], sep=args.sep)
 
-        # Compute and output the number of elements in each partition
-        for i, neles in enumerate(regions[:, 1:] - regions[:, :-1]):
-            print(i, *neles, sep=args.sep)
+    # Compute and output the number of elements in each partition
+    for i, neles in enumerate(regions[:, 1:] - regions[:, :-1]):
+        print(i, *neles, sep=args.sep)
 
 
 def process_partition_add(args):
@@ -272,10 +272,10 @@ def process_partition_remove(args):
     with h5py.File(args.mesh, 'r+') as mesh:
         mparts = mesh['partitionings']
 
-        if args.name not in mparts:
-            raise ValueError(f'Partitioning {args.name} does not exist')
+    if args.name not in mparts:
+        raise ValueError(f'Partitioning {args.name} does not exist')
 
-        del mparts[args.name]
+    del mparts[args.name]
 
 
 def process_export(args):
