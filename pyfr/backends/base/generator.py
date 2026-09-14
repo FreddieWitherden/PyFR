@@ -3,6 +3,7 @@ import re
 
 import numpy as np
 
+from pyfr.backends.base.mathfns import generate_helper, lower_math_fns
 from pyfr.cache import memoize
 from pyfr.dsl.codegen import CodeGenerator
 from pyfr.dsl.nodes import (Assign, Binary, Call, DslCall, DslVar, ExprStmt,
@@ -93,6 +94,9 @@ class BaseKernelGenerator:
 
     # Region kinds which are directives for the generator itself
     _unwrap_regions = frozenset({'simplify'})
+
+    # Math functions we lower to helper functions in all kernels
+    lower_fns = frozenset()
 
     # Lowerings for the $-intrinsics produced by the dereference rules
     _xidx = None
@@ -193,6 +197,9 @@ class BaseKernelGenerator:
         # Non-IEEE simplification is opted into by AD-generated kernels
         self._simplify = 'simplify' in self.regions
 
+        # Math helpers required by the body, filled in by passes
+        self._helper_calls = set()
+
         # Select the dereference rules appropriate to our dimensionality
         if ndim == 1:
             self._deref_rules = self._deref_rules_1d
@@ -202,6 +209,9 @@ class BaseKernelGenerator:
         # Render the main body of our kernel
         body, preamble, epilogue = self._render_body_preamble_epilogue()
         self.body, self.preamble, self.epilogue = body, preamble, epilogue
+
+        # Generate any math helper functions used by the body
+        self._gen_helpers()
 
         # Determine the dimensions to be iterated over
         self._dims = ['_nx'] if ndim == 1 else ['_ny', '_nx']
@@ -391,13 +401,20 @@ class BaseKernelGenerator:
     def _generate(self, codegen, ast):
         return codegen.generate(self._lower_intrinsics(ast))
 
+    def _gen_helpers(self):
+        self.helpers = '\n'.join(generate_helper(k, self.fpdtype)
+                                 for k in sorted(self._helper_calls))
+
     def _render_body(self, ast, codegen):
         # Fold constant arithmetic inside of array indices
         ast = fold_indices(ast)
 
-        # Simplify the dereferenced expressions
+        # Simplify kernels which have opted in
         if self._simplify:
             ast = Simplifier().simplify_program(ast)
+
+        # Lower math functions to helper function calls
+        ast, self._helper_calls = lower_math_fns(ast, self.lower_fns)
 
         # At single precision suffix all floating point constants by 'f'
         if self.fpdtype == np.float32:
@@ -612,7 +629,8 @@ class BaseGPUKernelGenerator(BaseKernelGenerator):
     def render(self):
         spec = self._render_spec()
 
-        return f'''{spec}
+        return f'''{self.helpers}
+            {spec}
             {{
                 ixdtype_t _x = {self._gid};
                 {self.preamble}
