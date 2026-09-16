@@ -88,7 +88,7 @@ void batched_tiled_matvec(const struct batched_tiled_matvec_kargs *restrict args
 
                         for (ixdtype_t lc = 0; lc < ncolt; lc++)
                         {
-                            fpdtype_t *mp = ${'mcache[lc]' if mixed else 'trow + lc*${soasz}'};
+                            fpdtype_t *mp = ${'mcache[lc]' if mixed else f'trow + lc*{soasz}'};
 
                             #pragma omp simd
                             for (ixdtype_t lane = 0; lane < active; lane++)
