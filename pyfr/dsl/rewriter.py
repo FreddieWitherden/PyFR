@@ -1,3 +1,4 @@
+from pyfr.dsl.codegen import CodeGenerator
 from pyfr.dsl.lexer import Lexer
 from pyfr.dsl.nodes import (DslVar, Float, Index, Var, VarDecl, map_ast,
                             unwrap_index)
@@ -45,6 +46,29 @@ def rename_vars(ast, renames):
                 return map_ast(node, rename)
 
     return rename(ast)
+
+
+def rewrite_exprs(exprs, rules, coords={}, subs={}):
+    coords = {c: parse_expr(v) for c, v in coords.items()}
+    rsubs = coords | {k: parse_expr(v) for k, v in subs.items()}
+    rules = {k: rename_vars(parse_expr(v), rsubs) for k, v in rules.items()}
+    exprs = {k: parse_expr(v) for k, v in exprs.items()}
+
+    csubs = [(coords[c], r) for c, r in rules.items() if c in coords]
+
+    def coord(node):
+        for pat, r in csubs:
+            if node == pat:
+                return r
+
+        return map_ast(node, coord)
+
+    rexprs = {k: coord(v) for k, v in exprs.items()}
+    rexprs |= {k: rename_vars(r, rexprs) for k, r in rules.items()
+               if k in exprs}
+
+    gen, simp = CodeGenerator().generate, Simplifier().simplify_fully
+    return {k: gen(simp(r)) for k, r in rexprs.items() if r != exprs[k]}
 
 
 def fold_indices(ast):

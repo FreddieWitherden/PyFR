@@ -32,6 +32,7 @@ class BaseSystem:
 
         # Plugin kernel-creation callbacks
         self._kernel_callbacks = []
+        self._expr_rewrites = []
 
         # Conservative and physical variable names
         convars = self.elementscls.convars(mesh.ndims, cfg)
@@ -102,6 +103,9 @@ class BaseSystem:
             r.n for r in registers
             if not r.rhs and not r.dynamic and r.n
         )
+
+    def register_expr_rewrites(self, rules, externs={}):
+        self._expr_rewrites.append((rules, externs))
 
     def register_kernel_callback(self, names, callback):
         # Check for extern name clashes with other plugins
@@ -201,6 +205,11 @@ class BaseSystem:
             register(m, lhs, rhs, m.next_mpi_tag())
 
     def commit(self):
+        # Apply modifications to the boundary condition expressions
+        for b in self._bc_inters:
+            for rules, externs in self._expr_rewrites:
+                b.rewrite_exprs(rules, externs)
+
         # Prepare the kernels and any associated MPI requests
         self._gen_kernels(self.nrhs, self.ele_map.values(), self._int_inters,
                           self._mpi_inters, self._bc_inters)
