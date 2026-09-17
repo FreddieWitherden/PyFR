@@ -344,6 +344,7 @@ class BaseKernelGenerator:
                 pairs = [(Index(Var(rname), Int(j)), self._deref_arg(va, j))
                          for j in range(n)]
 
+                rdecl = VarDecl(False, 'fpdtype_t', rname, [Int(n)])
                 decl = VarDecl(False, 'fpdtype_t', va.name, [Int(n)])
                 accum = [self._accum_stmt(va.reduceop, dst,
                                           Index(Var(va.name), Int(j)))
@@ -351,11 +352,12 @@ class BaseKernelGenerator:
             else:
                 pairs = [(Var(rname), self._deref_arg(va))]
 
+                rdecl = VarDecl(False, 'fpdtype_t', rname)
                 decl = VarDecl(False, 'fpdtype_t', va.name)
                 accum = [self._accum_stmt(va.reduceop, pairs[0][0],
                                           Var(va.name))]
 
-            self._reduce_args.append((rname, pairs, ident, va.reduceop))
+            self._reduce_args.append((rdecl, pairs, ident, va.reduceop))
 
             dstr = self._generate(codegen, decl)
             astr = self._generate(codegen, Program(accum))
@@ -602,21 +604,17 @@ class BaseGPUKernelGenerator(BaseKernelGenerator):
 
         # Preamble: register accumulators initialised to identity
         stmts = []
-        for rn, pairs, ident, _ in self._reduce_args:
+        for rdecl, pairs, ident, _ in self._reduce_args:
             iexpr = Float(float(ident))
-            if (n := len(pairs)) > 1:
-                stmts.append(VarDecl(False, 'fpdtype_t', rn, [Int(n)]))
-                stmts += [ExprStmt(Assign(Index(Var(rn), Int(j)), iexpr))
-                          for j in range(n)]
-            else:
-                stmts.append(VarDecl(False, 'fpdtype_t', rn, None, iexpr))
+            stmts.append(rdecl)
+            stmts += [ExprStmt(Assign(acc, iexpr)) for acc, _ in pairs]
         preamble = self._generate(codegen, Program(stmts))
 
         # Epilogue: shared-memory reduce across y-threads, then
         # write result to global (single shared array, reused)
         rs = Index(Var('_rs'), Var(str(lx)))
         epilogue = f'{self._shared_prfx} fpdtype_t _rs[{bx}];'
-        for rname, pairs, ident, reduceop in self._reduce_args:
+        for _, pairs, ident, reduceop in self._reduce_args:
             for src, dst in pairs:
                 atom = self._generate(codegen,
                                       self._atomic_stmt(reduceop, rs, src))
