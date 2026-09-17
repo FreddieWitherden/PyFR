@@ -98,6 +98,9 @@ class BaseKernelGenerator:
     # Math functions we lower to helper functions in all kernels
     lower_fns = frozenset()
 
+    # Qualifier needed for helper functions to be callable from kernels
+    _function_qual = ''
+
     # Lowerings for the $-intrinsics produced by the dereference rules
     _xidx = None
     _aosoa = None
@@ -402,8 +405,10 @@ class BaseKernelGenerator:
         return codegen.generate(self._lower_intrinsics(ast))
 
     def _gen_helpers(self):
-        self.helpers = '\n'.join(generate_helper(k, self.fpdtype)
-                                 for k in sorted(self._helper_calls))
+        self.helpers = '\n'.join(
+            generate_helper(k, self.fpdtype, self._function_qual)
+            for k in sorted(self._helper_calls)
+        )
 
     def _render_body(self, ast, codegen):
         # Fold constant arithmetic inside of array indices

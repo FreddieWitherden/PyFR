@@ -52,7 +52,7 @@ _TR = {
 }
 
 _pow_tpl = Template('''\
-static inline fpdtype_t _pyfr_pow_${r}_${q}(fpdtype_t x)
+${qual}static inline fpdtype_t _pyfr_pow_${r}_${q}(fpdtype_t x)
 {
     ${tr}
     union { fpdtype_t f; fp_uint_t u; } _b;
@@ -75,7 +75,7 @@ static inline fpdtype_t _pyfr_pow_${r}_${q}(fpdtype_t x)
 
 
 _exp_tpl = Template('''\
-static inline fpdtype_t _pyfr_exp(fpdtype_t x)
+${qual}static inline fpdtype_t _pyfr_exp(fpdtype_t x)
 {
     fpdtype_t n = rint${sfx}(x*${log2e});
     fpdtype_t r = fma${sfx}(-n, ${ln2hi}, x);
@@ -87,7 +87,7 @@ static inline fpdtype_t _pyfr_exp(fpdtype_t x)
 }''')
 
 
-def generate_exp_fn(fpdtype):
+def generate_exp_fn(fpdtype, qual=''):
     # Split of ln2 into a leading part and a residual correction
     if fpdtype == np.float64:
         sfx = ''
@@ -104,14 +104,14 @@ def generate_exp_fn(fpdtype):
     ecoef = [1/factorial(k) for k in range(ncoef)]
 
     return _exp_tpl.render(
-        sfx=sfx, eshift=eshift, ebias=ebias,
+        qual=qual, sfx=sfx, eshift=eshift, ebias=ebias,
         log2e=f'{1.4426950408889634:.18e}{sfx}',
         ln2hi=f'{ln2hi:.18e}{sfx}', ln2lo=f'{ln2lo:.18e}{sfx}',
         poly=_horner(ecoef, 'r', sfx),
     ).rstrip()
 
 
-def generate_pow_fn(r, q, fpdtype):
+def generate_pow_fn(r, q, fpdtype, qual=''):
     g = gcd(r, q)
     r, q = r // g, q // g
 
@@ -134,7 +134,7 @@ def generate_pow_fn(r, q, fpdtype):
     sc = _scale_coeffs(q)
 
     return _pow_tpl.render(
-        r=r, q=q, sfx=sfx, nn=nn,
+        qual=qual, r=r, q=q, sfx=sfx, nn=nn,
         tr=_TR[r], yq=_YQ[q],
         eshift=eshift, emask=emask, ebias=ebias,
         mmask=mmask, one_bits=one_bits,
@@ -179,13 +179,13 @@ def _lower_pow(base, v, helpers):
     return None
 
 
-def generate_helper(key, fpdtype):
+def generate_helper(key, fpdtype, qual=''):
     # Emit the helper function identified by the given key
     match key:
         case ('exp',):
-            return generate_exp_fn(fpdtype)
+            return generate_exp_fn(fpdtype, qual)
         case ('pow', r, q):
-            return generate_pow_fn(r, q, fpdtype)
+            return generate_pow_fn(r, q, fpdtype, qual)
 
 
 def _const_value(expr):
