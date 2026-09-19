@@ -17,7 +17,7 @@ class CodeGenerator:
     _func_canon = {'abs': 'fabs', 'min': 'fmin', 'max': 'fmax'}
 
     # Binary operators which have a compound assignment form
-    _compound = {op[:-1] for op in COMPOUND_ASSIGN}
+    _compound = frozenset(op[:-1] for op in COMPOUND_ASSIGN)
 
     # Escape sequences for string literals
     _str_esc = str.maketrans({'\\': '\\\\', '"': '\\"', '\n': '\\n',

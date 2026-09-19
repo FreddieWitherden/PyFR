@@ -195,18 +195,18 @@ PRECEDENCE = {
     '++': 20, '--': 20, '(': 20, '[': 20
 }
 
-BINARY_OPS = {
+BINARY_OPS = frozenset([
     '+', '-', '*', '/', '%', '==', '!=', '<', '<=', '>', '>=', '&&', '||',
     '<<', '>>', '&', '|', '^', '**'
-}
-RIGHT_ASSOC = {'**'}
+])
+RIGHT_ASSOC = frozenset(['**'])
 
-COMPOUND_ASSIGN = {
+COMPOUND_ASSIGN = frozenset([
     '+=', '-=', '*=', '/=', '%=', '<<=', '>>=', '&=', '|=', '^='
-}
+])
 
-UNARY_OPS = {'+', '-', '!', '~', '++', '--'}
-POSTFIX_OPS = {'++', '--'}
+UNARY_OPS = frozenset(['+', '-', '!', '~', '++', '--'])
+POSTFIX_OPS = frozenset(['++', '--'])
 
 
 def unwrap_index(expr):
